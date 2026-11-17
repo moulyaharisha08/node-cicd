@@ -1,0 +1,65 @@
+name: Node.js Continuous Delivery
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  # Step 1: Build, test, and package an artifact automatically
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Package build artifact
+        run: |
+          mkdir -p dist
+          cp package.json index.js dist/ 2>/dev/null || cp package.json dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-package
+          path: dist/
+
+  # Step 2: Deploy automatically to staging after tests pass
+  deploy-staging:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-package
+          path: dist/
+
+      - name: Deploy to Staging
+        run: echo "Deploying artifact to Staging environment..."
+
+  # Step 3: Manual approval gate before production deployment
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-package
+          path: dist/
+
+      - name: Deploy to Production
+        run: echo "Manual approval granted! Deploying artifact to Production..."
